@@ -1,0 +1,15 @@
+{
+    "Configuration":{
+        "tenantConfiguration":{
+            "graphUrl":"https://manage.office.com/api",
+            "tenantId":"Enter here your tenant id",
+            "appID":"Enter your app id",
+            "clientSecret":"Enter clientSecret. It is not recommended to use secret as plain text."
+        },
+        "TelegramConfig":{
+            "telegramToken":"Enter your bot Secret",
+            "chatId":"Enter destination chat ID or group ID"
+        }
+    }
+    
+}
