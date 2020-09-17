@@ -1,4 +1,5 @@
-$configPath = Get-Content -Raw -Path "C:\Users\Aslan\Documents\PowerShell\Scripts\M365_MessageCenter_tgbot\config.json" | ConvertFrom-Json 
+$scirptPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
+$configPath = Get-Content -Raw -Path "$scirptPath\config.json" | ConvertFrom-Json 
 
 $clientId = $configPath.Configuration.tenantConfiguration.appID
 $tenantId = $configPath.Configuration.tenantConfiguration.tenantId
