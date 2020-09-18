@@ -1,48 +1,59 @@
 $scirptPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
 $configPath = Get-Content -Raw -Path "$scirptPath\config.json" | ConvertFrom-Json 
 
+
+#tenant configuration variables
 $clientId = $configPath.Configuration.tenantConfiguration.appID
 $tenantId = $configPath.Configuration.tenantConfiguration.tenantId
 $clientSecret = $configPath.Configuration.tenantConfiguration.clientSecret
 $graphUrl = $configPath.Configuration.tenantConfiguration.graphUrl
 
+#telegram bot configuration variables
 $tokenTelegram = $configPath.Configuration.TelegramConfig.telegramToken
 [string]$chatID = $configPath.Configuration.TelegramConfig.chatId
 
+#functions block
 Function Get-GraphResult ($Url, $Token, $Method) {
 
-        $Header = @{
+    $Header = @{
             Authorization = "$($Token.token_type) $($Token.access_token)"
-        }
+    }
     
-        $PostSplat = @{
-            ContentType = 'application/json'
-            Method = $Method
-            # Create string by joining bodylist with '&'
-            Header = $Header
-            Uri = $Url
-        }
-        try {
-            Invoke-RestMethod @PostSplat -ErrorAction Stop
-        }
-        catch {
-            $ex = $_.Exception
-            $errorResponse = $ex.Response.GetResponseStream()
-            $reader = New-Object System.IO.StreamReader($errorResponse)
-            $reader.BaseStream.Position = 0
-            $reader.DiscardBufferedData()
-            $responseBody = $reader.ReadToEnd();
-            Write-Host "Response content:`n$responseBody" -f Red
-            Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
-            write-host
-            #break
-        }
+    $PostSplat = @{
+        ContentType = 'application/json'
+        Method = $Method
+        Header = $Header
+        Uri = $Url
+    }
+
+    try {
+        Invoke-RestMethod @PostSplat -ErrorAction Stop
+    }
+    
+    catch {
+        $ex = $_.Exception
+    
+        $errorResponse = $ex.Response.GetResponseStream()
+    
+        $reader = New-Object System.IO.StreamReader($errorResponse)
+    
+        $reader.BaseStream.Position = 0
+    
+        $reader.DiscardBufferedData()
+    
+        $responseBody = $reader.ReadToEnd();
+    
+        Write-Error "Response content:`n$responseBody" -f Red
+        
+        Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+    
+        break
+    }
 }
 
 Function Get-GraphToken ($AppId, $AppSecret, $TenantID) {
-
+        #defice resources' URLs
         $AuthUrl = "https://login.microsoftonline.com/$TenantID/oauth2/v2.0/token"
-        #https://login.microsoftonline.com/$($tenantID)/oauth2/token?api-version=1.0
         $Scope = "https://manage.office.com/.default"
     
         $Body = @{
@@ -55,10 +66,10 @@ Function Get-GraphToken ($AppId, $AppSecret, $TenantID) {
         $PostSplat = @{
             ContentType = 'application/x-www-form-urlencoded'
             Method = 'POST'
-            # Create string by joining bodylist with '&'
             Body = $Body
             Uri = $AuthUrl
         }
+
         try {
             Invoke-RestMethod @PostSplat -ErrorAction Stop
         }
@@ -68,10 +79,12 @@ Function Get-GraphToken ($AppId, $AppSecret, $TenantID) {
 }
 
 Function Get-MCmessages(){
+
     $graphApiVersion = "v1.0"
     $MC_resource = "ServiceComms/Messages?&`$filter=MessageType%20eq%20'MessageCenter'" 
     $uri = "$graphUrl/$graphApiVersion/$($tenantId)/$MC_resource"
     $Method = "GET"
+
     try {
             Get-GraphResult -Url $uri -Token $Token -Method $Method
             Write-Verbose "New messages successfully collected"
@@ -83,15 +96,18 @@ Function Get-MCmessages(){
             $reader.BaseStream.Position = 0
             $reader.DiscardBufferedData()
             $responseBody = $reader.ReadToEnd();
+
             Write-Host "Response content:`n$responseBody" -f Red
             Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
-            write-host
+            Write-Verbose "Can't get new messages"
+
             break
-            Write-Verbose "Can't get new messaegs" 
+             
     }
 }
 
 function Remove-HtmlTags ($Message) {
+
         $message = $message -replace '^\<p\>',""
         $message = $message -replace '\<p\>',""
         $message = $message -replace "\<p style\=[^>]*\>",''
@@ -131,7 +147,9 @@ function Remove-HtmlTags ($Message) {
 }
 
 function Send-TelegramMessage {
+
         [CmdletBinding()]
+
         param (
             [Parameter(Mandatory=$true)]
             [string]$messageText,
@@ -140,9 +158,9 @@ function Send-TelegramMessage {
             [Parameter(Mandatory=$true)]
             [string]$chatID
         )
+
         $URL_set = "https://api.telegram.org/bot$tokenTelegram/sendMessage"
           
-    
         $body = @{
             text = $messageText
             parse_mode = "html"
@@ -162,11 +180,11 @@ function Send-TelegramMessage {
 }
 
 function RunScript {
-    [CmdletBinding()]
-    param (
 
-    )
+    [CmdletBinding()]
+    param()
     Write-Verbose "Getting the M365 Graph Token"
+
     try {
         $Token = Get-GraphToken -AppId $clientId -AppSecret $clientSecret -TenantID $tenantId -ErrorAction Stop
         Write-Verbose "Token successfully issued"
@@ -202,31 +220,40 @@ function RunScript {
     try {
         $CheckingTime = $messages.value.Messages | Where-Object {$(Get-date $($_.publishedTime)) -gt $(Get-date($controlTime))} | Select-Object publishedTime
         $NewMessagesCount = $CheckingTime.publishedTime.count
+        
         if ($NewMessagesCount -gt 0) {
             Write-Verbose "There are $NewMessagesCount new messages"
         }else {
             Write-Verbose "There is no new messages"
         }
+
     }
     catch {
         Write-Error "Can't check new messages"
     }
+    
     if ($NewMessagesCount -gt 0) {
+
         foreach ($TimeStamp in $($CheckingTime.publishedTime)){
+            
             $MessagePreview = $null
             $MessagePreview = $messages.value.Messages | Where-Object {$_.publishedTime -eq $TimeStamp} | Select-Object MessageText
             $messageID = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).id
             $MessageTitle = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).Title
             $MessageType = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).actiontype
             $PublishedTime = ($messages.value.messages | Where-Object {$_.publishedTime -eq $TimeStamp}).publishedTime
+
             $MessageText = $MessagePreview.MessageText
             $FormattedMesssageText = Remove-HtmlTags -Message $MessageText
             $BoldMessageTitle = "<b>$MessageTitle</b>"
             $MessageDescription = "$MessageType Message $messageID"
             $FinalMessage = "$BoldMessageTitle `n$MessageDescription `n$FormattedMesssageText"
+
             Send-TelegramMessage -messageText $FinalMessage -tokenTelegram $tokenTelegram -chatID $chatID
+
             Write-Verbose "Has been sent message $messageID with published time: $PublishedTime"
         }
     }
 }
+
 RunScript -Verbose
