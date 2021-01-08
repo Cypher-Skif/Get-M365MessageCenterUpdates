@@ -241,6 +241,15 @@ function RunScript {
             $messageID = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).id
             $MessageTitle = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).Title
             $MessageType = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).actiontype
+            
+            #adding emoji to Message Type
+            if ($MessageType -eq 'Awareness') {
+                $MessageType = '&#129001; ' + $MessageType
+            }elseif ($MessageType -eq 'Action') {
+                $MessageType = '&#128997; ' + $MessageType                
+            }
+            ###
+            
             $PublishedTime = ($messages.value.messages | Where-Object {$_.publishedTime -eq $TimeStamp}).publishedTime
 
             $MessageText = $MessagePreview.MessageText
