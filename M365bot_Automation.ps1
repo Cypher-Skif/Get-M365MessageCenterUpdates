@@ -1,66 +1,47 @@
-$scirptPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
-$configPath = Get-Content -Raw -Path "$scirptPath\config.json" | ConvertFrom-Json 
+[CmdletBinding()]
+param ()
 
 
-#tenant configuration variables
-$clientId = $configPath.Configuration.tenantConfiguration.appID
-$tenantId = $configPath.Configuration.tenantConfiguration.tenantId
-$clientSecret = $configPath.Configuration.tenantConfiguration.clientSecret
-$graphUrl = $configPath.Configuration.tenantConfiguration.graphUrl
+    Function Get-GraphResult ($Url, $Token, $Method) {
 
-#telegram bot configuration variables
-$tokenTelegram = $configPath.Configuration.TelegramConfig.telegramToken
-[string]$chatID = $configPath.Configuration.TelegramConfig.chatId
-
-#functions block
-Function Get-GraphResult ($Url, $Token, $Method) {
-
-    $Header = @{
+        $Header = @{
             Authorization = "$($Token.token_type) $($Token.access_token)"
-    }
+        }
     
-    $PostSplat = @{
-        ContentType = 'application/json'
-        Method = $Method
-        Header = $Header
-        Uri = $Url
+        $PostSplat = @{
+            ContentType = 'application/json'
+            Method = $Method
+            Header = $Header
+            Uri = $Url
+        }
+
+        try {
+            Invoke-RestMethod @PostSplat -ErrorAction Stop
+        }
+        catch {
+            $ex = $_.Exception
+            $errorResponse = $ex.Response.GetResponseStream()
+            $reader = New-Object System.IO.StreamReader($errorResponse)
+            $reader.BaseStream.Position = 0
+            $reader.DiscardBufferedData()
+            $responseBody = $reader.ReadToEnd();
+            Write-Output "$(Get-Date): Response content:`n$responseBody" -f Red
+            Write-Error "$(Get-Date): Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
+            #break
+        }
     }
 
-    try {
-        Invoke-RestMethod @PostSplat -ErrorAction Stop
-    }
-    
-    catch {
-        $ex = $_.Exception
-    
-        $errorResponse = $ex.Response.GetResponseStream()
-    
-        $reader = New-Object System.IO.StreamReader($errorResponse)
-    
-        $reader.BaseStream.Position = 0
-    
-        $reader.DiscardBufferedData()
-    
-        $responseBody = $reader.ReadToEnd();
-    
-        Write-Error "Response content:`n$responseBody" -f Red
-        
-        Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
-    
-        break
-    }
-}
 
-Function Get-GraphToken ($AppId, $AppSecret, $TenantID) {
-        #defice resources' URLs
+    Function Get-GraphToken ($AppId, $AppSecret, $TenantID) {
+
         $AuthUrl = "https://login.microsoftonline.com/$TenantID/oauth2/v2.0/token"
         $Scope = "https://manage.office.com/.default"
     
         $Body = @{
             client_id = $AppId
-                client_secret = $AppSecret
-                scope = $Scope
-                grant_type = 'client_credentials'
+            client_secret = $AppSecret
+            scope = $Scope
+            grant_type = 'client_credentials'
         }
     
         $PostSplat = @{
@@ -69,200 +50,222 @@ Function Get-GraphToken ($AppId, $AppSecret, $TenantID) {
             Body = $Body
             Uri = $AuthUrl
         }
-
         try {
             Invoke-RestMethod @PostSplat -ErrorAction Stop
         }
         catch {
-            Write-Warning "Exception was caught: $($_.Exception.Message)" 
+            Write-Warning "$(Get-Date): Exception was caught: $($_.Exception.Message)" 
         }
-}
-
-Function Get-MCmessages(){
-
-    $graphApiVersion = "v1.0"
-    $MC_resource = "ServiceComms/Messages?&`$filter=MessageType%20eq%20'MessageCenter'" 
-    $uri = "$graphUrl/$graphApiVersion/$($tenantId)/$MC_resource"
-    $Method = "GET"
-
-    try {
-            Get-GraphResult -Url $uri -Token $Token -Method $Method
-            Write-Verbose "New messages successfully collected"
     }
-    catch {
+
+
+    Function Get-MCmessages(){
+
+        $graphApiVersion = "v1.0"
+        $MC_resource = "ServiceComms/Messages?&`$filter=MessageType%20eq%20'MessageCenter'"
+        $uri = "$global:graphUrl/$graphApiVersion/$($global:tenantId)/$MC_resource"
+        
+        $Method = "GET"
+
+        try {
+            Get-GraphResult -Url $uri -Token $Token -Method $Method
+            Write-Output "$(Get-Date): New messages successfully collected"
+        }
+        catch {
             $ex = $_.Exception
             $errorResponse = $ex.Response.GetResponseStream()
             $reader = New-Object System.IO.StreamReader($errorResponse)
             $reader.BaseStream.Position = 0
             $reader.DiscardBufferedData()
             $responseBody = $reader.ReadToEnd();
-
-            Write-Host "Response content:`n$responseBody" -f Red
-            Write-Error "Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
-            Write-Verbose "Can't get new messages"
-
+            Write-Output "$(Get-Date): Response content:`n$responseBody" -f Red
+            Write-Error "$(Get-Date): Request to $Uri failed with HTTP Status $($ex.Response.StatusCode) $($ex.Response.StatusDescription)"
             break
-             
+            Write-Output "$(Get-Date): Can't get new messaegs" 
+        }
     }
-}
 
-function Remove-HtmlTags ($Message) {
 
-        $message = $message -replace '^\<p\>',""
-        $message = $message -replace '\<p\>',""
-        $message = $message -replace "\<p style\=[^>]*\>",''
-        $message = $message -replace "\<p class\=[^>]*\>",''
-        $message = $message -replace '\<\/p\>'," `n "
-        $message = $message -replace "\<li style\=[^>]*\>"
-        $message = $message -replace '\<font[^>]*\>'
-        $message = $message -replace '\<\/font\>'
-        $message = $message -replace ' style=""'
-        $message = $message -replace '&nbsp;',''
-        $message = $message -replace '\<span\>'
-        $message = $message -replace '\<\/span\>'
-        $message = $message -replace '\<div\>'
-        $message = $message -replace '\<\/div\>'
-        $message = $message -replace '\<br\><\<br\>','<br>'
-        $message = $message -replace '\<br\>',""
-        $message = $message -replace '\<ul\>'
-        $message = $message -replace '\<\/ul\>'
-        $message = $message -replace '\<ol\>'
-        $message = $message -replace '\<\/ol\>'
-        $message = $message -replace '\<li\>'," - "
-        $message = $message -replace '\<\/li\>'
-        $message = $message -replace ' target\=\"_blank\"',''
-        $message = $message -replace '\[','<b>'
-        $message = $message -replace '\]','</b>'
-        $message = $message -replace '\<A','<a'
-        $message = $message -replace '\<\/A\>','</a>'
-        $message = $message -replace "\<img[^>]*\>",'[There was image]'
-        $message = $message -replace '\<o\:p\>'
-        $message = $message -replace '\<\/o\:p\>'
-        $message = $message -replace '\<Boolean\>'
-        $message = $message -replace "`n `n `n `n","`n"
-        $message = $message -replace "`n `n `n","`n"
-        $message = $message -replace "`n `n","`n"
-
-        return $message
-}
-
-function Send-TelegramMessage {
-
-        [CmdletBinding()]
+    function Remove-HtmlTags {
 
         param (
+            $Text
+        )
+
+        $SimpleTags = @(
+            'p',
+            'i',
+            'span',
+            'div',
+            'ul',
+            'ol',
+            'li',
+            'h1',
+            'h2',
+            'h3',
+            'div'
+        )
+
+        foreach($tag in $SimpleTags){
+            $Pattern = "\<\/?$tag\>"
+            $Text = $Text -replace $Pattern
+        }
+
+        $Text = $Text -replace "\<\/?font[^>]*\>"
+        $Text = $Text -replace '\<br\s?\/?\>'
+        $Text = $Text -replace '\&rarr'
+        $Text = $Text -replace ' style=""'
+        $Text = $Text -replace '&nbsp;',''
+        $Text = $Text -replace ' target\=\"_blank\"',''
+        $Text = $Text -replace '\[','<b>'
+        $Text = $Text -replace '\]','</b>'
+        $Text = $Text -replace '\<A','<a'
+        $Text = $Text -replace '\<\/A\>','</a>'
+        $Text = $Text -replace "\<img[^>]*\>",'[There was an image]'
+        $Text = $Text -replace ' - ',"`n- "
+
+        $Text
+
+    }
+
+
+    function Send-TelegramMessage {
+
+        [CmdletBinding()]
+        param (
             [Parameter(Mandatory=$true)]
-            [string]$messageText,
+            [string]$MessageText,
             [Parameter(Mandatory=$true)]
-            [string]$tokenTelegram,
+            [string]$TokenTelegram,
             [Parameter(Mandatory=$true)]
-            [string]$chatID
+            [string]$ChatID
         )
 
         $URL_set = "https://api.telegram.org/bot$tokenTelegram/sendMessage"
-          
+        
+    
         $body = @{
-            text = $messageText
+            text = $MessageText
             parse_mode = "html"
-            chat_id = $chatID
+            chat_id = $ChatID
         }
     
-        $messageJson = $body | ConvertTo-Json
+
+        $MessageJson = $body | ConvertTo-Json
     
+
         try {
-            Invoke-RestMethod $URL_set -Method Post -ContentType 'application/json; charset=utf-8' -Body $messageJson
-            Write-Verbose "Message has been sent"
+            Invoke-RestMethod $URL_set -Method Post -ContentType 'application/json; charset=utf-8' -Body $MessageJson -ErrorAction Stop
+            Write-Output "$(Get-Date): Message has been sent"
         }
         catch {
-            Write-Error "Can't sent message"
+            Write-Error "$(Get-Date): Can't sent message"
+            Write-Output "$(Get-Date): StatusCode:" $_.Exception.Response.StatusCode.value__ 
+            Write-Output "$(Get-Date): StatusDescription:" $_.Exception.Response.StatusDescription
+            throw
         }
-        
-}
-
-function RunScript {
-
-    [CmdletBinding()]
-    param()
-    Write-Verbose "Getting the M365 Graph Token"
-
-    try {
-        $Token = Get-GraphToken -AppId $clientId -AppSecret $clientSecret -TenantID $tenantId -ErrorAction Stop
-        Write-Verbose "Token successfully issued"
-    }
-    catch {
-        Write-Error "Can't get the token!"
-        break
+            
     }
 
-    Write-Verbose "Collecting Messages"
-    try {
-        $messages = Get-MCmessages -ErrorAction Stop
-        Write-Verbose "MC messages successfully collected"
-    }
-    catch {
-        Write-Error "Can't collect the messages"
-        break
-    }
-
-    Write-Verbose "Checking current time"
-    try {
-        $controlTime = (Get-date).AddMinutes(-61) 
-        Write-Verbose "Control time is: $controlTime"
-        $CurrentTime = Get-Date
-        Write-Verbose "Current time: $CurrentTime"
-    }
-    catch {
-        Write-Error "Can't check control time"
-        break
-    }
-
-    write-host "Checking new messages"
-    try {
-        $CheckingTime = $messages.value.Messages | Where-Object {$(Get-date $($_.publishedTime)) -gt $(Get-date($controlTime))} | Select-Object publishedTime
-        $NewMessagesCount = $CheckingTime.publishedTime.count
-        
-        if ($NewMessagesCount -gt 0) {
-            Write-Verbose "There are $NewMessagesCount new messages"
-        }else {
-            Write-Verbose "There is no new messages"
-        }
-
-    }
-    catch {
-        Write-Error "Can't check new messages"
-    }
+    $ScirptPath = Split-Path -Path $MyInvocation.MyCommand.Definition -Parent
+    $ConfigPath = Get-Content -Raw -Path "$scirptPath\config.json" | ConvertFrom-Json 
     
+    
+    #tenant configuration variables
+    $ClientId = $ConfigPath.Configuration.TenantConfiguration.AppID
+    $TenantId = $ConfigPath.Configuration.TenantConfiguration.TenantId
+    $ClientSecret = $ConfigPath.Configuration.TenantConfiguration.ClientSecret
+    $GraphUrl = $ConfigPath.Configuration.TenantConfiguration.GraphUrl
+    
+    #telegram production configuration variables
+    $TokenTelegram = $ConfigPath.Configuration.TelegramConfig.telegramToken
+    [string]$ChatID = $ConfigPath.Configuration.TelegramConfig.chatId
+
+    #telegram tests and logs configuration variables
+    [string]$TestChatID = $ConfigPath.Configuration.TelegramTestConfig.ChatId
+
+
+    Write-Output "$(Get-Date): Getting the M365 Graph Token"
+    try {
+        $Token = Get-GraphToken -AppId $ClientId -AppSecret $ClientSecret -TenantID $TenantId -ErrorAction Stop
+        Write-Output "$(Get-Date): Graph API token successfully issued"
+    }
+    catch {
+        Write-Error "$(Get-Date): Can't get the token!"
+        break
+    }
+
+    Write-Output "$(Get-Date): Collecting Messages"
+    try {
+        $Messages = Get-MCmessages -ErrorAction Stop
+        Write-Output "$(Get-Date): MC messages successfully collected"
+    }
+    catch {
+        Write-Error "$(Get-Date): Can't collect the messages"
+        break
+    }
+
+    Write-Output "$(Get-Date): Checking current time"
+    $ControlTime = (Get-date).AddMinutes(-61) 
+    Write-Output "$(Get-Date): Control time is: $ControlTime"
+    $CurrentTime = Get-Date
+    Write-Output "$(Get-Date): Current time: $CurrentTime"
+
+
+    write-Output "$(Get-Date): Checking new messages"
+    $CheckingTime = $Messages.value.Messages | Where-Object {$(Get-date $($_.publishedTime)) -gt $(Get-date($ControlTime))} | Select-Object publishedTime
+    $NewMessagesCount = $CheckingTime.publishedTime.count
+
+    if ($NewMessagesCount -gt 0) {
+        Write-Output "$(Get-Date): There are $NewMessagesCount new messages"
+    }else {
+        Write-Output "$(Get-Date): There is no new messages"
+        break
+    }
+
+
     if ($NewMessagesCount -gt 0) {
 
         foreach ($TimeStamp in $($CheckingTime.publishedTime)){
-            
+
             $MessagePreview = $null
-            $MessagePreview = $messages.value.Messages | Where-Object {$_.publishedTime -eq $TimeStamp} | Select-Object MessageText
-            $messageID = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).id
-            $MessageTitle = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).Title
-            $MessageType = ($messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).actiontype
+            $MessagePreview = $Messages.value.Messages | Where-Object {$_.publishedTime -eq $TimeStamp} | Select-Object MessageText
+            $MessageID = ($Messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).id
+            $MessageTitle = ($Messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).Title
+            $MessageType = ($Messages.value | Where-Object {$_.Messages.publishedTime -eq $TimeStamp}).actiontype
             
             #adding emoji to Message Type
             if ($MessageType -eq 'Awareness') {
-                $MessageType = '&#129001; ' + $MessageType
+                $MessageType = '&#129000; ' + $MessageType
             }elseif ($MessageType -eq 'Action') {
                 $MessageType = '&#128997; ' + $MessageType                
+            }elseif ($MessageType -eq 'Opportunity') {
+                $MessageType = '&#129001; ' + $MessageType            
             }
             ###
-            
-            $PublishedTime = ($messages.value.messages | Where-Object {$_.publishedTime -eq $TimeStamp}).publishedTime
 
+            $PublishedTime = Get-date $($($Messages.value.messages | Where-Object {$_.publishedTime -eq $TimeStamp}).publishedTime)
             $MessageText = $MessagePreview.MessageText
-            $FormattedMesssageText = Remove-HtmlTags -Message $MessageText
+
+            $FormattedMesssageText = $(Remove-HtmlTags $MessageText) -creplace '(?m)^\s*\r?\n',''
             $BoldMessageTitle = "<b>$MessageTitle</b>"
             $MessageDescription = "$MessageType Message $messageID"
             $FinalMessage = "$BoldMessageTitle `n$MessageDescription `n$FormattedMesssageText"
+            
+            try {
+                Send-TelegramMessage -messageText $FinalMessage -tokenTelegram $tokenTelegram -chatID $chatID -ErrorAction Stop
+                Write-Output "$(Get-Date): Message $MessageID has been successfully sent"
+            }
+            catch {
+                Write-Error "$(Get-Date): There is issue with sending message: $MessageID"
+                $ErrorMessage = "Message send error to 'M365 Message Center Updates': `nMessageID: `n$MessageID"
+                Send-TelegramMessage -messageText $ErrorMessage -tokenTelegram $TokenTelegram -chatID $TestChatID
+            }
 
-            Send-TelegramMessage -messageText $FinalMessage -tokenTelegram $tokenTelegram -chatID $chatID
-
-            Write-Verbose "Has been sent message $messageID with published time: $PublishedTime"
+            Write-Output "$(Get-Date): Has been sent message $MessageID with published time: $PublishedTime"
         }
     }
-}
 
-RunScript -Verbose
+
+
+
