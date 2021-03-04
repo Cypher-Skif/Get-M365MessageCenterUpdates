@@ -259,9 +259,6 @@ Write-Output "$(Get-Date): Current time: $CurrentTime"
 $СontrolTime = ($CurrentTime).AddMinutes(-60) 
 Write-Output "$(Get-Date): Control time is: $СontrolTime"
 
-
-
-
 write-Output "$(Get-Date): Checking new messages"
 $NewMessages = $Messages.value | Where-Object {$(Get-date $_.LastUpdatedTime) -gt $(Get-date $СontrolTime)} 
 $NewMessagesCount = $NewMessages.id.count
