@@ -126,7 +126,7 @@ Function Remove-HtmlTags {
         "\<\/?font[^>]*\>",
         '\<br\s?\/?\>',
         '\&rarr',
-        'style=""',
+        ' style=""',
         ' target\=\"_blank\"'
     )
 
