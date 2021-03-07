@@ -195,6 +195,7 @@ function Send-TelegramMessage {
     }
     catch {
         Write-Error "$(Get-Date): Can't sent message"
+        Write-Error "$(Get-Date): $($_.Exception.Message)"
         Write-Output "$(Get-Date): StatusCode:" $_.Exception.Response.StatusCode.value__ 
         Write-Output "$(Get-Date): StatusDescription:" $_.Exception.Response.StatusDescription
         throw
@@ -209,6 +210,7 @@ try {
 }
 catch {
     write-error "$(Get-Date): Can't get Graph API credentials"
+    write-error "$(Get-Date): $($_.Exception.Message)"
     break
 }
 
@@ -224,6 +226,7 @@ try{
 }
 catch{
     write-error "$(Get-Date): Can't get telegram credentials"
+    write-error "$(Get-Date): $($_.Exception.Message)"
     break
 }
 
@@ -240,6 +243,7 @@ try {
 }
 catch {
     Write-Error "$(Get-Date): Can't get the token!"
+    write-error "$(Get-Date): $($_.Exception.Message)"
     break
 }
 
@@ -250,6 +254,7 @@ try {
 }
 catch {
     Write-Error "$(Get-Date): Can't collect the messages"
+    write-error "$(Get-Date): $($_.Exception.Message)"
     break
 }
 
@@ -319,7 +324,8 @@ if ($NewMessagesCount -gt 0) {
         }
         catch {
             Write-Error "$(Get-Date): There is issue with sending message: $MessageId `nPublished timestamp: $PublishedTime `nUpdated: $UpdatedTime"
-            $ErrorMessage = "Message send error to 'M365 Message Center Updates': `nMessageID: $messageID `nTimeStamp: $TimeStamp `nMessage text:`n$TgmMessage"
+            Write-Error "$(Get-Date): $($_.Exception.Message)"
+            $ErrorMessage = "Message send error to 'M365 Message Center Updates': `nMessageID: $messageID `nTimeStamp: $TimeStamp `nMessage text:`n$TgmMessage `nErrorMessage: $($_.Exception.Message)"
             Send-TelegramMessage -MessageText $ErrorMessage -TokenTelegram $TokenTelegram -ChatID $ErrorsHandlerChatId -ParsingType 'markdown'
         }
 
