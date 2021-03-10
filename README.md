@@ -11,3 +11,4 @@ Also you need to specify the telegram ChatID for your messages and additional ch
 [string]$ChatID = '-1000000001' #Production chat ID
 [string]$ErrorsHandlerChatId = '1' #Chat for errors log
 
+Link to the channel with messages: https://t.me/M365MessageCenter
