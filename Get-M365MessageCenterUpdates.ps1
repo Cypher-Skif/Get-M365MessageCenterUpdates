@@ -284,11 +284,12 @@ if ($NewMessagesCount -gt 0) {
         $messageID = $NewMessage.Id
         $MessageTitle = $NewMessage.Title
         $MessageType = $NewMessage.Actiontype
-        $PublishedTime = Get-date $($NewMessage.Messages.publishedTime)
-        $UpdatedTime = Get-Date $($NewMessage.LastUpdatedTime)
-        $MessageActionRequiredByDate = $(Get-date $($NewMessage.ActionRequiredByDate) -ErrorAction SilentlyContinue) 
+        $PublishedTime = Get-date $($NewMessage.Messages.publishedTime) -UFormat "%d %B %Y"
+        $UpdatedTime = Get-Date $($NewMessage.LastUpdatedTime) -UFormat "%d %B %Y"
+        $MessageActionRequiredByDate = $(Get-date $($NewMessage.ActionRequiredByDate) -UFormat "%d %B %Y" -ErrorAction SilentlyContinue) 
         $MessageAdditionalInformation = $NewMessage.ExternalLink
         $MessageBlogLink = $NewMessage.BlogLink
+        $MessageAffectedService = $NewMessage.AffectedWorkloadDisplayNames -join ', '
         
         #adding emoji to Message Type
         if ($MessageType -eq 'Awareness') {
@@ -306,8 +307,9 @@ if ($NewMessagesCount -gt 0) {
         
         $BoldMessageTitle = "<b>$MessageTitle</b>"
         $MessageDescription = "$MessageType Message $messageID"
+        $ChangeScope = "Affected Workloads: $MessageAffectedService"
         $PublishingInfo = "Published: $PublishedTime `nUpdated: $UpdatedTime"
-        $TgmMessage = "$BoldMessageTitle `n$MessageDescription `n$PublishingInfo `n$FormattedMesssageText"
+        $TgmMessage = "$BoldMessageTitle `n$MessageDescription `n$ChangeScope `n$FormattedMesssageText `n$PublishingInfo"
 
         if($MessageActionRequiredByDate){
             $TgmMessage += "`n<b>Action required by date: </b> $MessageActionRequiredByDate"
