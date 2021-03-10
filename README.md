@@ -7,8 +7,8 @@ You can specify your credentials from Azure Automation Secure Assets using these
 $GraphClientCreds = Get-AutomationPSCredential -Name 'APIMaster'  
 $TelegramClientCreds = Get-AutomationPSCredential -Name 'telegramToken'     
 
-Also you need to specify the telegram ChatID for your messages and additional chat ID for errors logs.
-[string]$ChatID = '-1000000001' #Production chat ID
-[string]$ErrorsHandlerChatId = '1' #Chat for errors log
+Also you need to specify the telegram ChatID for your messages and additional chat ID for errors logs.  
+[string]$ChatID = '-1000000001' #Production chat ID  
+[string]$ErrorsHandlerChatId = '1' #Chat for errors log  
 
 Link to the channel with messages: https://t.me/M365MessageCenter
