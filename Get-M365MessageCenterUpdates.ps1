@@ -42,7 +42,15 @@ Function Get-ApiRequestResult {
     param (
         [Parameter(Mandatory=$True)]
         [String]
-        $Url, $Method, $Token
+        $Url
+        
+        [Parameter(Mandatory=$True)]
+        [String]
+        $Method
+        
+        [Parameter(Mandatory=$True)]
+        [String]
+        $Token
     )
  
     $Header = @{
