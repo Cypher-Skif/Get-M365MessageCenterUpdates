@@ -6,8 +6,13 @@ Function Get-ApiToken {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$True)]
-        [String]
-        $AppId, $AppSecret, $TenantID
+        [String]$AppId, 
+
+        [Parameter(Mandatory=$True)]
+        [String]$AppSecret,
+
+        [Parameter(Mandatory=$True)]
+        [String]$TenantID
     )
 
     $AuthUrl = "https://login.microsoftonline.com/$TenantID/oauth2/v2.0/token"
@@ -41,16 +46,13 @@ Function Get-ApiRequestResult {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$True)]
-        [String]
-        $Url
+        [String]$Url,
         
         [Parameter(Mandatory=$True)]
-        [String]
-        $Method
+        [String]$Method,
         
         [Parameter(Mandatory=$True)]
-        [String]
-        $Token
+        [String]$Token
     )
  
     $Header = @{
@@ -85,7 +87,10 @@ Function Get-MCMessages {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory=$True)]
-        $APIUrl, $TenantId
+        [string]$APIUrl,
+
+        [Parameter(Mandatory=$True)]
+        [string]$TenantId
     )
 
     $ApiVersion = "v1.0"
@@ -179,12 +184,16 @@ function Send-TelegramMessage {
     param (
         [Parameter(Mandatory=$true)]
         [ValidateSet("html","markdown")]
-        [String]
-        $ParsingType,
+        [String]$ParsingType,
 
         [Parameter(Mandatory=$true)]
-        [String]
-        $MessageText, $TokenTelegram, $ChatID
+        [String]$MessageText,
+        
+        [Parameter(Mandatory=$true)]
+        [String]$TokenTelegram, 
+        
+        [Parameter(Mandatory=$true)]
+        [String]$ChatID
     )
 
     $URL_set = "https://api.telegram.org/bot$tokenTelegram/sendMessage"
