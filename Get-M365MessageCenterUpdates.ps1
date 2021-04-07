@@ -139,8 +139,10 @@ Function Remove-HtmlTags {
         "\<\/?font[^>]*\>",
         '\<br\s?\/?\>',
         '\&rarr',
-        ' style=""',
-        ' target\=\"_blank\"'
+        'style="*"',
+        ' target\=\"_blank\"',
+        '\<span[^>]*\>',
+        ' font-size:[^>]*\;\"'
     )
 
     $TagsToReplace = @(
